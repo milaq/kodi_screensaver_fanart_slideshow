@@ -112,7 +112,7 @@
 		<platform>all</platform>
 		<license>GNU GENERAL PUBLIC LICENSE Version 2</license>
 		<forum>https://forum.kodi.tv/showthread.php?tid=154032</forum>
-		<source>https://gitlab.com/ronie/screensaver.xbmc.slideshow</source>
+		<source>https://gitlab.com/ronie/screensaver.picture.slideshow</source>
 		<assets>
 			<icon>resources/icon.png</icon>
 			<fanart>resources/fanart.jpg</fanart>
