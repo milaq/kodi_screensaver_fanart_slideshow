@@ -6,8 +6,6 @@
 		<setting label="30006" type="enum" id="effect" default="2" lvalues="30007|30008|30009|231"/>
 	</category>
 	<category label="30025">
-		<setting label="30016" type="bool" id="random" default="true"/>
-		<setting label="30026" type="bool" id="resume" default="false" enable="eq(-1,false)"/>
 		<setting label="30012" type="bool" id="name" default="false"/>
 		<setting label="30023" type="bool" id="music" default="false"/>
 	</category>

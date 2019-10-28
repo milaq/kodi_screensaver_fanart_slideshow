@@ -55,7 +55,6 @@ class Screensaver(xbmcgui.WindowXMLDialog):
         self.Monitor  = MyMonitor(action = self._exit)
         self.stop     = False
         self.startup  = True
-        self.offset   = 0
 
     def _get_settings(self):
         # read addon settings
@@ -63,8 +62,6 @@ class Screensaver(xbmcgui.WindowXMLDialog):
         self.slideshow_time   = int(ADDON.getSetting('time'))
         # convert float to hex value usable by the skin
         self.slideshow_dim    = hex(int('%.0f' % (float(100 - int(ADDON.getSetting('level'))) * 2.55)))[2:] + 'ffffff'
-        self.slideshow_random = ADDON.getSetting('random')
-        self.slideshow_resume = ADDON.getSetting('resume')
         self.slideshow_name   = ADDON.getSetting('name')
         self.slideshow_music  = ADDON.getSetting('music')
         # get image controls from the xml
@@ -91,10 +88,8 @@ class Screensaver(xbmcgui.WindowXMLDialog):
         usetexturecache = True
         # loop until onScreensaverDeactivated is called
         while (not self.Monitor.abortRequested()) and (not self.stop):
-            # keep track of image position, needed to save the offset
-            self.position = self.offset
             # iterate through all the images
-            for img in items[self.offset:]:
+            for img in items:
                 # add image to gui
                 cur_img.setImage(img[0],usetexturecache)
                 # give xbmc some time to load the image
@@ -139,8 +134,6 @@ class Screensaver(xbmcgui.WindowXMLDialog):
                 # break out of the for loop if onScreensaverDeactivated is called
                 if  self.stop or self.Monitor.abortRequested():
                     break
-                self.position += 1
-            self.offset = 0
             items = copy.deepcopy(self.items)
 
     def _get_items(self, update=False):
@@ -156,37 +149,8 @@ class Screensaver(xbmcgui.WindowXMLDialog):
                     if item['fanart']:
                         self.items.append([item['fanart'], item['label']])
         # randomize
-        if self.slideshow_random == 'true':
-            random.seed()
-            random.shuffle(self.items, random.random)
-
-    def _get_offset(self):
-        try:
-            offset = xbmcvfs.File(RESUMEFILE)
-            self.offset = int(offset.read())
-            offset.close()
-        except:
-            self.offset = 0
-
-    def _save_offset(self):
-        if not xbmcvfs.exists(CACHEFOLDER):
-            xbmcvfs.mkdir(CACHEFOLDER)
-        try:
-            offset = xbmcvfs.File(RESUMEFILE, 'w')
-            offset.write(str(self.position))
-            offset.close()
-        except:
-            log('failed to save resume point')
-
-    def _read_cache(self, hexfile):
-        images = ''
-        try:
-            cache = xbmcvfs.File(CACHEFILE % hexfile)
-            images = eval(cache.read())
-            cache.close()
-        except:
-            pass
-        return images
+        random.seed()
+        random.shuffle(self.items, random.random)
 
     def _anim(self, cur_img):
         # reset position the current image
@@ -293,9 +257,7 @@ class Screensaver(xbmcgui.WindowXMLDialog):
         self._clear_prop('Music')
         self._clear_prop('Splash')
         self._clear_prop('Background')
-        # save the current position  to file
         self.close()
-
 
 class img_update(threading.Thread):
     def __init__( self, *args, **kwargs ):
