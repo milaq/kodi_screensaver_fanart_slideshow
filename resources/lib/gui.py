@@ -30,17 +30,6 @@ SKINDIR  = xbmc.getSkinDir().decode('utf-8')
 # images types that can contain exif/iptc data
 EXIF_TYPES  = ('.jpg', '.jpeg', '.tif', '.tiff')
 
-# random effect list to choose from
-EFFECTLIST = ["('conditional', 'effect=zoom start=100 end=400 center=auto time=%i condition=true'),",
-              "('conditional', 'effect=slide start=1280,0 end=-1280,0 time=%i condition=true'), ('conditional', 'effect=zoom start=%i end=%i center=auto time=%i condition=true')",
-              "('conditional', 'effect=slide start=-1280,0 end=1280,0 time=%i condition=true'), ('conditional', 'effect=zoom start=%i end=%i center=auto time=%i condition=true')",
-              "('conditional', 'effect=slide start=0,720 end=0,-720 time=%i condition=true'), ('conditional', 'effect=zoom start=%i end=%i center=auto time=%i condition=true')",
-              "('conditional', 'effect=slide start=0,-720 end=0,720 time=%i condition=true'), ('conditional', 'effect=zoom start=%i end=%i center=auto time=%i condition=true')",
-              "('conditional', 'effect=slide start=1280,720 end=-1280,-720 time=%i condition=true'), ('conditional', 'effect=zoom start=%i end=%i center=auto time=%i condition=true')",
-              "('conditional', 'effect=slide start=-1280,720 end=1280,-720 time=%i condition=true'), ('conditional', 'effect=zoom start=%i end=%i center=auto time=%i condition=true')",
-              "('conditional', 'effect=slide start=1280,-720 end=-1280,720 time=%i condition=true'), ('conditional', 'effect=zoom start=%i end=%i center=auto time=%i condition=true')",
-              "('conditional', 'effect=slide start=-1280,-720 end=1280,720 time=%i condition=true'), ('conditional', 'effect=zoom start=%i end=%i center=auto time=%i condition=true')"]
-
 # get local dateformat to localize the exif date tag
 DATEFORMAT = xbmc.getRegion('dateshort')
 
@@ -59,8 +48,7 @@ class Screensaver(xbmcgui.WindowXMLDialog):
         if not effectslowdown:
             effectslowdown = 1
         # calculate the animation time
-        speedup = 1 / float(effectslowdown)
-        self.adj_time = int(101000 * speedup)
+        self.speedup = 1 / float(effectslowdown)
         # get the images
         self._get_items()
         if self.slideshow_type == '2' and self.slideshow_random == 'false' and self.slideshow_resume == 'true':
@@ -377,29 +365,59 @@ class Screensaver(xbmcgui.WindowXMLDialog):
     def _anim(self, cur_img):
         # reset position the current image
         cur_img.setPosition(0, 0)
-        # pick a random anim
-        number = random.randint(0,8)
-        posx = 0
-        posy = 0
         # add 1 sec fadeout time to showtime
-        anim_time = self.slideshow_time + 1
-        # set zoom level depending on the anim time
-        zoom = 110 + anim_time
-        if number == 1 or number == 5 or number == 7:
-            posx = int(-1280 + (12.8 * anim_time) + 0.5)
-        elif number == 2 or number == 6 or number == 8:
-            posx = int(1280 - (12.8 * anim_time) + 0.5)
-        if number == 3 or number == 5 or number == 6:
-            posy = int(-720 + (7.2 * anim_time) + 0.5)
-        elif number == 4 or number == 7 or number == 8:
-            posy = int(720 - (7.2 * anim_time) + 0.5)
-        # position the current image
-        cur_img.setPosition(posx, posy)
-        # add the animation to the current image
-        if number == 0:
-            cur_img.setAnimations(eval(EFFECTLIST[number] % (self.adj_time)))
+        anim_time = (self.slideshow_time + 1) * 1000
+        # set pixels per second
+        pps = 20.0 * self.speedup
+        # calculate animation travel distance with taking pps into account
+        dist = pps * (self.slideshow_time)
+        # calculate minimum, non-overlapping zoomlevel of the smallest dimension (screen height)
+        zoom_min = 100 + (dist / 720.0 * 100.0)
+        # add small random zoom for increased object motion illusion
+        zoom_max = zoom_min + random.randint(5, 10)
+        # our offset would be half the calculated distance
+        offset = dist / 2.0
+        # choose random move effect
+        effect = random.randint(0, 5)
+        if effect == 0:
+            start_x = offset
+            start_y = 0
+            end_x = -offset
+            end_y = 0
+        elif effect == 1:
+            start_x = -offset
+            start_y = 0
+            end_x = offset
+            end_y = 0
+        elif effect == 2:
+            start_x = 0
+            start_y = offset
+            end_x = 0
+            end_y = -offset
+        elif effect == 3:
+            start_x = 0
+            start_y = -offset
+            end_x = 0
+            end_y = offset
+        elif effect == 4:
+            start_x = offset
+            start_y = offset
+            end_x = -offset
+            end_y = -offset
+        elif effect == 5:
+            start_x = -offset
+            start_y = -offset
+            end_x = offset
+            end_y = offset
+        # whether to zoom in or out
+        if random.randint(0, 1):
+            zoom_from = zoom_min
+            zoom_to = zoom_max
         else:
-            cur_img.setAnimations(eval(EFFECTLIST[number] % (self.adj_time, zoom, zoom, self.adj_time)))
+            zoom_from = zoom_max
+            zoom_to = zoom_min
+        base_effect = "('conditional', 'effect=slide start=%i,%i end=%i,%i time=%i condition=true'), ('conditional', 'effect=zoom start=%i end=%i center=auto time=%i condition=true')"
+        cur_img.setAnimations(eval(base_effect % (start_x, start_y, end_x, end_y, anim_time, zoom_from, zoom_to, anim_time)))
 
     def _get_animspeed(self):
         # find the skindir
