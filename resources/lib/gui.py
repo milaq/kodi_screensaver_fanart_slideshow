@@ -15,9 +15,6 @@
 
 import random, copy, threading
 import xbmcgui, xbmcaddon
-import EXIFvfs
-from iptcinfovfs import IPTCInfo
-from XMPvfs import XMP_Tags
 from xml.dom.minidom import parse
 from utils import *
 import json
@@ -26,12 +23,6 @@ ADDON    = sys.modules[ '__main__' ].ADDON
 ADDONID  = sys.modules[ '__main__' ].ADDONID
 CWD      = sys.modules[ '__main__' ].CWD
 SKINDIR  = xbmc.getSkinDir().decode('utf-8')
-
-# images types that can contain exif/iptc data
-EXIF_TYPES  = ('.jpg', '.jpeg', '.tif', '.tiff')
-
-# get local dateformat to localize the exif date tag
-DATEFORMAT = xbmc.getRegion('dateshort')
 
 class Screensaver(xbmcgui.WindowXMLDialog):
     def __init__( self, *args, **kwargs ):
@@ -78,42 +69,20 @@ class Screensaver(xbmcgui.WindowXMLDialog):
         self.slideshow_dim    = hex(int('%.0f' % (float(100 - int(ADDON.getSetting('level'))) * 2.55)))[2:] + 'ffffff'
         self.slideshow_random = ADDON.getSetting('random')
         self.slideshow_resume = ADDON.getSetting('resume')
-        self.slideshow_scale  = ADDON.getSetting('scale')
         self.slideshow_name   = ADDON.getSetting('label')
-        self.slideshow_date   = ADDON.getSetting('date')
-        self.slideshow_iptc   = ADDON.getSetting('iptc')
         self.slideshow_music  = ADDON.getSetting('music')
-        self.slideshow_bg     = ADDON.getSetting('background')
-        # select which image controls from the xml we are going to use
-        if self.slideshow_scale == 'false':
-            self.image1 = self.getControl(1)
-            self.image2 = self.getControl(2)
-            self.getControl(3).setVisible(False)
-            self.getControl(4).setVisible(False)
-            if self.slideshow_bg == 'true':
-                self.image3 = self.getControl(5)
-                self.image4 = self.getControl(6)
-        else:
-            self.image1 = self.getControl(3)
-            self.image2 = self.getControl(4)
-            self.getControl(1).setVisible(False)
-            self.getControl(2).setVisible(False)
-            self.getControl(5).setVisible(False)
-            self.getControl(6).setVisible(False)
+        # get image controls from the xml
+        self.image1 = self.getControl(1)
+        self.image2 = self.getControl(2)
         if self.slideshow_name == '0':
             self.getControl(99).setVisible(False)
         else:
             self.namelabel = self.getControl(99)
-        self.datelabel = self.getControl(100)
-        self.textbox = self.getControl(101)
         # set the dim property
         self._set_prop('Dim', self.slideshow_dim)
         # show music info during slideshow if enabled
         if self.slideshow_music == 'true':
             self._set_prop('Music', 'show')
-        # show background if enabled
-        if self.slideshow_bg == 'true':
-            self._set_prop('Background', 'show')
 
     def _start_show(self, items):
         # we need to start the update thread after the deep copy of self.items finishes
@@ -138,98 +107,11 @@ class Screensaver(xbmcgui.WindowXMLDialog):
                     continue
                 # add image to gui
                 cur_img.setImage(img[0],usetexturecache)
-                # add background image to gui
-                if self.slideshow_scale == 'false' and self.slideshow_bg == 'true':
-                    if order[0] == 1:
-                        self.image3.setImage(img[0],usetexturecache)
-                    else:
-                        self.image4.setImage(img[0],usetexturecache)
                 # give xbmc some time to load the image
                 if not self.startup:
                     xbmc.sleep(4000)
                 else:
                     self.startup = False
-                # get exif and iptc tags if enabled in settings and we have an image that can contain this data
-                datetime = ''
-                title = ''
-                description = ''
-                keywords = ''
-                exif = False
-                iptc_ti = False
-                iptc_de = False
-                iptc_ke = False
-                if self.slideshow_type == '2' and ((self.slideshow_date == 'true') or (self.slideshow_iptc == 'true')) and (os.path.splitext(img[0])[1].lower() in EXIF_TYPES):
-                    imgfile = xbmcvfs.File(img[0])
-                    # get exif date
-                    if self.slideshow_date == 'true':
-                        try:
-                            exiftags = EXIFvfs.process_file(imgfile, details=False, stop_tag='DateTimeOriginal')
-                            if exiftags.has_key('EXIF DateTimeOriginal'):
-                                datetime = str(exiftags['EXIF DateTimeOriginal']).decode('utf-8')
-                                # sometimes exif date returns useless data, probably no date set on camera
-                                if datetime == '0000:00:00 00:00:00':
-                                    datetime = ''
-                                else:
-                                    try:
-                                        # localize the date format
-                                        date = datetime[:10].split(':')
-                                        time = datetime[10:]
-                                        if DATEFORMAT[1] == 'm':
-                                            datetime = date[1] + '-' + date[2] + '-' + date[0] + '  ' + time
-                                        elif DATEFORMAT[1] == 'd':
-                                            datetime = date[2] + '-' + date[1] + '-' + date[0] + '  ' + time
-                                        else:
-                                            datetime = date[0] + '-' + date[1] + '-' + date[2] + '  ' + time
-                                    except:
-                                        pass
-                                    exif = True
-                        except:
-                            pass
-                    # get iptc title, description and keywords
-                    if self.slideshow_iptc == 'true':
-                        try:
-                            iptc = IPTCInfo(imgfile)
-                            iptctags = iptc.data
-                            if iptctags.has_key(105):
-                                title = iptctags[105].decode('utf-8')
-                                iptc_ti = True
-                            if iptctags.has_key(120):
-                                description = iptctags[120].decode('utf-8')
-                                iptc_de = True
-                            if iptctags.has_key(25):
-                                keywords = ', '.join(iptctags[25]).decode('utf-8')
-                                iptc_ke = True
-                        except:
-                            pass
-                        if (not iptc_ti or not iptc_de or not iptc_ke):
-                            try:
-                                tags = XMP_Tags().get_xmp(img[0]) # passing the imgfile object does not work for some reason
-                                if (not iptc_ti) and tags.has_key('dc:title'):
-                                    title = tags['dc:title']
-                                    iptc_ti = True
-                                if (not iptc_de) and tags.has_key('dc:description'):
-                                    description = tags['dc:description']
-                                    iptc_de = True
-                                if (not iptc_ke) and tags.has_key('dc:subject'):
-                                    keywords = tags['dc:subject'].replace('||',', ')
-                                    iptc_ke = True
-                            except:
-                                pass
-                    imgfile.close()
-                # display exif date if we have one
-                if exif:
-                    self.datelabel.setLabel('[I]' + datetime + '[/I]')
-                    self.datelabel.setVisible(True)
-                else:
-                    self.datelabel.setVisible(False)
-                # display iptc data if we have any
-                if iptc_ti or iptc_de or iptc_ke:
-                    self.textbox.setText(
-                        '[CR]'.join([title, keywords] if title == description
-                                    else [title, description, keywords]))
-                    self.textbox.setVisible(True)
-                else:
-                    self.textbox.setVisible(False)
                 # get the file or foldername if enabled in settings
                 if self.slideshow_name != '0':
                     if self.slideshow_name == '1':
@@ -265,15 +147,6 @@ class Screensaver(xbmcgui.WindowXMLDialog):
                     # set fade time to zero
                     self._set_prop('Fade2%d' % order[0], '0')
                     self._set_prop('Fade2%d' % order[1], '1')
-                # add fade anim to background images
-                if self.slideshow_bg == 'true':
-                    if self.slideshow_effect != '3':
-                        self._set_prop('Fade1%d' % order[0], '0')
-                        self._set_prop('Fade1%d' % order[1], '1')
-                    else:
-                        # no fade effect
-                        self._set_prop('Fade3%d' % order[0], '0')
-                        self._set_prop('Fade3%d' % order[1], '1')
                 # define next image
                 if cur_img == self.image1:
                     cur_img = self.image2
