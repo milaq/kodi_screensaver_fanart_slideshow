@@ -42,8 +42,6 @@ class Screensaver(xbmcgui.WindowXMLDialog):
         self.speedup = 1 / float(effectslowdown)
         # get the images
         self._get_items()
-        if self.slideshow_type == '2' and self.slideshow_random == 'false' and self.slideshow_resume == 'true':
-            self._get_offset()
         if self.items:
             # hide startup splash
             self._set_prop('Splash', 'hide')
@@ -61,23 +59,21 @@ class Screensaver(xbmcgui.WindowXMLDialog):
 
     def _get_settings(self):
         # read addon settings
-        self.slideshow_type   = ADDON.getSetting('type')
-        self.slideshow_path   = ADDON.getSetting('path')
         self.slideshow_effect = ADDON.getSetting('effect')
         self.slideshow_time   = int(ADDON.getSetting('time'))
         # convert float to hex value usable by the skin
         self.slideshow_dim    = hex(int('%.0f' % (float(100 - int(ADDON.getSetting('level'))) * 2.55)))[2:] + 'ffffff'
         self.slideshow_random = ADDON.getSetting('random')
         self.slideshow_resume = ADDON.getSetting('resume')
-        self.slideshow_name   = ADDON.getSetting('label')
+        self.slideshow_name   = ADDON.getSetting('name')
         self.slideshow_music  = ADDON.getSetting('music')
         # get image controls from the xml
         self.image1 = self.getControl(1)
         self.image2 = self.getControl(2)
-        if self.slideshow_name == '0':
-            self.getControl(99).setVisible(False)
-        else:
+        if self.slideshow_name == 'true':
             self.namelabel = self.getControl(99)
+        else:
+            self.getControl(99).setVisible(False)
         # set the dim property
         self._set_prop('Dim', self.slideshow_dim)
         # show music info during slideshow if enabled
@@ -92,19 +88,13 @@ class Screensaver(xbmcgui.WindowXMLDialog):
         cur_img = self.image1
         order = [1,2]
 
-        if self.slideshow_type == '2':
-            usetexturecache = False
-        else:
-            usetexturecache = True
+        usetexturecache = True
         # loop until onScreensaverDeactivated is called
         while (not self.Monitor.abortRequested()) and (not self.stop):
             # keep track of image position, needed to save the offset
             self.position = self.offset
             # iterate through all the images
             for img in items[self.offset:]:
-                # cache file may be outdated
-                if self.slideshow_type == '2' and not xbmcvfs.exists(img[0]):
-                    continue
                 # add image to gui
                 cur_img.setImage(img[0],usetexturecache)
                 # give xbmc some time to load the image
@@ -112,23 +102,9 @@ class Screensaver(xbmcgui.WindowXMLDialog):
                     xbmc.sleep(4000)
                 else:
                     self.startup = False
-                # get the file or foldername if enabled in settings
-                if self.slideshow_name != '0':
-                    if self.slideshow_name == '1':
-                        if self.slideshow_type == '2':
-                            NAME, EXT = os.path.splitext(os.path.basename(img[0]))
-                        else:
-                            NAME = img[1]
-                    elif self.slideshow_name == '2':
-                        ROOT, NAME = os.path.split(os.path.dirname(img[0]))
-                    elif self.slideshow_name == '3':
-                        if self.slideshow_type == '2':
-                            ROOT, FOLDER = os.path.split(os.path.dirname(img[0]))
-                            FILE, EXT = os.path.splitext(os.path.basename(img[0]))
-                            NAME = FOLDER + ' / ' + FILE
-                        else:
-                            ROOT, FOLDER = os.path.split(os.path.dirname(img[0]))
-                            NAME = FOLDER + ' / ' + img[1]
+                # get the fanart name if enabled in settings
+                if self.slideshow_name == 'true':
+                    NAME = img[1]
                     self.namelabel.setLabel(NAME)
                 # set animations
                 if self.slideshow_effect == '0':
@@ -168,40 +144,17 @@ class Screensaver(xbmcgui.WindowXMLDialog):
             items = copy.deepcopy(self.items)
 
     def _get_items(self, update=False):
-        self.slideshow_type   = ADDON.getSetting('type')
-        log('slideshow type: %s' % self.slideshow_type)
-	    # check if we have an image folder, else fallback to video fanart
-        if self.slideshow_type == '2':
-            hexfile = checksum(self.slideshow_path) # check if path has changed, so we can create a new cache at startup
-            log('image path: %s' % self.slideshow_path)
-            log('update: %s' % update)
-            if (not xbmcvfs.exists(CACHEFILE % hexfile)) or update: # create a new cache if no cache exits or during the background scan
-                log('create cache')
-                create_cache(self.slideshow_path, hexfile)
-            self.items = self._read_cache(hexfile)
-            log('items: %s' % len(self.items))
-            if not self.items:
-                self.slideshow_type = '0'
-                # delete empty cache file
-                if xbmcvfs.exists(CACHEFILE % hexfile):
-                    xbmcvfs.delete(CACHEFILE % hexfile)
-	    # video fanart
-        if self.slideshow_type == '0':
-            methods = [('VideoLibrary.GetMovies', 'movies'), ('VideoLibrary.GetTVShows', 'tvshows')]
-	    # music fanart
-        elif self.slideshow_type == '1':
-            methods = [('AudioLibrary.GetArtists', 'artists')]
+        methods = [('VideoLibrary.GetMovies', 'movies'), ('VideoLibrary.GetTVShows', 'tvshows')]
         # query the db
-        if not self.slideshow_type == '2':
-            self.items = []
-            for method in methods:
-                json_query = xbmc.executeJSONRPC('{"jsonrpc": "2.0", "method": "' + method[0] + '", "params": {"properties": ["fanart"]}, "id": 1}')
-                json_query = unicode(json_query, 'utf-8', errors='ignore')
-                json_response = json.loads(json_query)
-                if json_response.has_key('result') and json_response['result'] != None and json_response['result'].has_key(method[1]):
-                    for item in json_response['result'][method[1]]:
-                        if item['fanart']:
-                            self.items.append([item['fanart'], item['label']])
+        self.items = []
+        for method in methods:
+            json_query = xbmc.executeJSONRPC('{"jsonrpc": "2.0", "method": "' + method[0] + '", "params": {"properties": ["fanart"]}, "id": 1}')
+            json_query = unicode(json_query, 'utf-8', errors='ignore')
+            json_response = json.loads(json_query)
+            if json_response.has_key('result') and json_response['result'] != None and json_response['result'].has_key(method[1]):
+                for item in json_response['result'][method[1]]:
+                    if item['fanart']:
+                        self.items.append([item['fanart'], item['label']])
         # randomize
         if self.slideshow_random == 'true':
             random.seed()
@@ -341,8 +294,6 @@ class Screensaver(xbmcgui.WindowXMLDialog):
         self._clear_prop('Splash')
         self._clear_prop('Background')
         # save the current position  to file
-        if self.slideshow_type == '2' and self.slideshow_random == 'false' and self.slideshow_resume == 'true':
-            self._save_offset()
         self.close()
 
 
