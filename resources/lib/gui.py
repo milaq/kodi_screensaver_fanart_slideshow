@@ -287,3 +287,6 @@ class MyMonitor(xbmc.Monitor):
 
     def onScreensaverDeactivated(self):
         self.action()
+
+    def onDPMSActivated(self):
+        self.action()
