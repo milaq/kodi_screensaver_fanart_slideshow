@@ -158,11 +158,11 @@ class Screensaver(xbmcgui.WindowXMLDialog):
         # add 1 sec fadeout time to showtime
         anim_time = (self.slideshow_time + 1) * 1000
         # set pixels per second
-        pps = 20.0 * self.speedup
+        pps = 30.0 * self.speedup
         # calculate animation travel distance with taking pps into account
         dist = pps * (self.slideshow_time)
         # calculate minimum, non-overlapping zoomlevel of the smallest dimension (screen height)
-        zoom_min = 100 + (dist / 720.0 * 100.0)
+        zoom_min = 100 + (dist / 1080.0 * 100.0)
         # add small random zoom for increased object motion illusion
         zoom_max = zoom_min + random.randint(5, 10)
         # our offset would be half the calculated distance
