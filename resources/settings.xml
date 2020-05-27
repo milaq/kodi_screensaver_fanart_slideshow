@@ -5,6 +5,5 @@
 		<setting label="30005" type="slider" id="level" range="0,1,100" option="percent" default="100"/>
 		<setting label="30006" type="enum" id="effect" default="2" lvalues="30007|30008|30009|231"/>
 		<setting label="30012" type="bool" id="name" default="false"/>
-		<setting label="30023" type="bool" id="music" default="false"/>
 	</category>
 </settings>

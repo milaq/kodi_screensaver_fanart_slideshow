@@ -63,7 +63,6 @@ class Screensaver(xbmcgui.WindowXMLDialog):
         # convert float to hex value usable by the skin
         self.slideshow_dim    = hex(int('%.0f' % (float(100 - int(ADDON.getSetting('level'))) * 2.55)))[2:] + 'ffffff'
         self.slideshow_name   = ADDON.getSetting('name')
-        self.slideshow_music  = ADDON.getSetting('music')
         # get image controls from the xml
         self.image1 = self.getControl(1)
         self.image2 = self.getControl(2)
@@ -73,9 +72,6 @@ class Screensaver(xbmcgui.WindowXMLDialog):
             self.getControl(99).setVisible(False)
         # set the dim property
         self._set_prop('Dim', self.slideshow_dim)
-        # show music info during slideshow if enabled
-        if self.slideshow_music == 'true':
-            self._set_prop('Music', 'show')
 
     def _start_show(self, items):
         # we need to start the update thread after the deep copy of self.items finishes
@@ -254,7 +250,6 @@ class Screensaver(xbmcgui.WindowXMLDialog):
         self._clear_prop('Fade11')
         self._clear_prop('Fade12')
         self._clear_prop('Dim')
-        self._clear_prop('Music')
         self._clear_prop('Splash')
         self._clear_prop('Background')
         self.close()
