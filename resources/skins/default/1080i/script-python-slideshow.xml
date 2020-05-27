@@ -65,13 +65,13 @@
 			</control>
 			<control type="label" id="99">
 				<posx>1875</posx>
-				<posy>992</posy>
+				<posy>1020</posy>
 				<width>900</width>
 				<height>30</height>
-				<font>font14</font>
+				<font>font12</font>
 				<align>right</align>
-				<textcolor>F0FFFFFF</textcolor>
-				<shadowcolor>F0000000</shadowcolor>
+				<textcolor>80FFFFFF</textcolor>
+				<shadowcolor>80000000</shadowcolor>
 			</control>
 		</control>
 		<control type="image">
