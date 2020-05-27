@@ -6,7 +6,7 @@ ADDONID      = ADDON.getAddonInfo('id')
 CWD          = ADDON.getAddonInfo('path').decode("utf-8")
 ADDONVERSION = ADDON.getAddonInfo('version')
 LANGUAGE     = ADDON.getLocalizedString
-RESOURCE     = xbmc.translatePath( os.path.join( CWD, 'resources', 'lib' ).encode("utf-8") ).decode("utf-8")
+RESOURCE     = xbmc.translatePath(os.path.join(CWD, 'lib'))
 
 sys.path.append(RESOURCE)
 
