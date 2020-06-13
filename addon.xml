@@ -113,7 +113,7 @@
 		<forum>https://forum.kodi.tv/showthread.php?tid=154032</forum>
 		<source>https://gitlab.com/ronie/screensaver.picture.slideshow</source>
 		<assets>
-			<icon>resources/icon.png</icon>
+			<icon>resources/icon.jpg</icon>
 			<fanart>resources/fanart.jpg</fanart>
 		</assets>
 	</extension>
