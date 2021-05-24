@@ -71,6 +71,7 @@
 				<font>font10</font>
 				<align>center</align>
 				<textcolor>CCFFFFFF</textcolor>
+				<shadowcolor>CC000000</shadowcolor>
 			</control>
 		</control>
 		<control type="image">
