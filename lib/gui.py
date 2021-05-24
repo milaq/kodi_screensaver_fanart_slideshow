@@ -13,19 +13,24 @@
 # *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 # *  http://www.gnu.org/copyleft/gpl.html
 
-import random, copy, threading
-import xbmcgui, xbmcaddon
-from xml.dom.minidom import parse
-from utils import *
+import os
+import random
+import copy
+import threading
 import json
+from xml.dom.minidom import parse
 
-ADDON    = sys.modules[ '__main__' ].ADDON
-ADDONID  = sys.modules[ '__main__' ].ADDONID
-CWD      = sys.modules[ '__main__' ].CWD
-SKINDIR  = xbmc.getSkinDir().decode('utf-8')
+import xbmcgui
+import xbmcaddon
+import xbmcvfs
+
+from lib.utils import *
+
+ADDON = xbmcaddon.Addon()
+SKINDIR = xbmc.getSkinDir()
 
 class Screensaver(xbmcgui.WindowXMLDialog):
-    def __init__( self, *args, **kwargs ):
+    def __init__(self, *args, **kwargs):
         pass
 
     def onInit(self):
@@ -50,19 +55,19 @@ class Screensaver(xbmcgui.WindowXMLDialog):
 
     def _get_vars(self):
         # get the screensaver window id
-        self.winid    = xbmcgui.Window(xbmcgui.getCurrentWindowDialogId())
+        self.winid = xbmcgui.Window(xbmcgui.getCurrentWindowDialogId())
         # init the monitor class to catch onscreensaverdeactivated calls
-        self.Monitor  = MyMonitor(action = self._exit)
-        self.stop     = False
-        self.startup  = True
+        self.Monitor = MyMonitor(action = self._exit)
+        self.stop = False
+        self.startup = True
 
     def _get_settings(self):
         # read addon settings
         self.slideshow_effect = ADDON.getSetting('effect')
-        self.slideshow_time   = int(ADDON.getSetting('time'))
+        self.slideshow_time = int(ADDON.getSetting('time'))
         # convert float to hex value usable by the skin
-        self.slideshow_dim    = hex(int('%.0f' % (float(100 - int(ADDON.getSetting('level'))) * 2.55)))[2:] + 'ffffff'
-        self.slideshow_name   = ADDON.getSetting('name')
+        self.slideshow_dim = hex(int('%.0f' % (float(100 - int(ADDON.getSetting('level'))) * 2.55)))[2:] + 'ffffff'
+        self.slideshow_name = ADDON.getSetting('name')
         # get image controls from the xml
         self.image1 = self.getControl(1)
         self.image2 = self.getControl(2)
@@ -138,9 +143,8 @@ class Screensaver(xbmcgui.WindowXMLDialog):
         self.items = []
         for method in methods:
             json_query = xbmc.executeJSONRPC('{"jsonrpc": "2.0", "method": "' + method[0] + '", "params": {"properties": ["fanart"]}, "id": 1}')
-            json_query = unicode(json_query, 'utf-8', errors='ignore')
             json_response = json.loads(json_query)
-            if json_response.has_key('result') and json_response['result'] != None and json_response['result'].has_key(method[1]):
+            if 'result' in json_response and json_response['result'] != None and method[1] in json_response['result']:
                 for item in json_response['result'][method[1]]:
                     if item['fanart']:
                         self.items.append([item['fanart'], item['label']])
@@ -208,29 +212,28 @@ class Screensaver(xbmcgui.WindowXMLDialog):
     def _get_animspeed(self):
         # find the skindir
         json_query = xbmc.executeJSONRPC('{"jsonrpc": "2.0", "method": "Addons.GetAddonDetails", "params": {"addonid": "%s", "properties": ["path"]}, "id": 1}' % SKINDIR)
-        json_query = unicode(json_query, 'utf-8', errors='ignore')
         json_response = json.loads(json_query)
-        if json_response.has_key('result') and (json_response['result'] != None) and json_response['result'].has_key('addon') and json_response['result']['addon'].has_key('path'):
+        if 'result' in json_response and (json_response['result'] != None) and 'addon' in json_response['result'] and 'path' in json_response['result']['addon']:
             skinpath = json_response['result']['addon']['path']
         else:
-            log('failed to retrieve skin path')
+            log('Failed to retrieve skin path')
             log(SKINDIR)
             log(json_query)
             return
-        skinxml = xbmc.translatePath( os.path.join( skinpath, 'addon.xml' ).encode('utf-8') ).decode('utf-8')
+        skinxml = xbmcvfs.translatePath(os.path.join(skinpath, 'addon.xml'))
         try:
             # parse the skin addon.xml
             self.xml = parse(skinxml)
             # find all extension tags
-            tags = self.xml.documentElement.getElementsByTagName( 'extension' )
+            tags = self.xml.documentElement.getElementsByTagName('extension')
             for tag in tags:
                 # find the effectslowdown attribute
-                for (name, value) in tag.attributes.items():
+                for (name, value) in list(tag.attributes.items()):
                     if name == 'effectslowdown':
                         anim = value
                         return anim
         except:
-            log('failed to parse addon.xml')
+            log('Failed to parse addon.xml')
             return
 
     def _set_prop(self, name, value):
@@ -255,7 +258,7 @@ class Screensaver(xbmcgui.WindowXMLDialog):
         self.close()
 
 class img_update(threading.Thread):
-    def __init__( self, *args, **kwargs ):
+    def __init__(self, *args, **kwargs):
         self._get_items =  kwargs['data']
         threading.Thread.__init__(self)
         self.stop = False
@@ -276,8 +279,9 @@ class img_update(threading.Thread):
         # exit when onScreensaverDeactivated gets called
         self.stop = True
 
+
 class MyMonitor(xbmc.Monitor):
-    def __init__( self, *args, **kwargs ):
+    def __init__(self, *args, **kwargs):
         self.action = kwargs['action']
 
     def onScreensaverDeactivated(self):
