@@ -20,14 +20,19 @@ import threading
 import json
 from xml.dom.minidom import parse
 
+import xbmc
 import xbmcgui
 import xbmcaddon
 import xbmcvfs
 
-from lib.utils import *
-
 ADDON = xbmcaddon.Addon()
+ADDONID = ADDON.getAddonInfo('id')
 SKINDIR = xbmc.getSkinDir()
+
+
+def log(msg, level):
+    xbmc.log("%s: %s" % (ADDONID, msg), level=level)
+
 
 class Screensaver(xbmcgui.WindowXMLDialog):
     def __init__(self, *args, **kwargs):
@@ -40,9 +45,6 @@ class Screensaver(xbmcgui.WindowXMLDialog):
         self._get_settings()
         # get the effectslowdown value from the current skin
         effectslowdown = self._get_animspeed()
-        # use default if we couldn't find the effectslowdown value
-        if not effectslowdown:
-            effectslowdown = 1
         # calculate the animation time
         self.speedup = 1 / float(effectslowdown)
         # get the images
@@ -216,9 +218,7 @@ class Screensaver(xbmcgui.WindowXMLDialog):
         if 'result' in json_response and (json_response['result'] != None) and 'addon' in json_response['result'] and 'path' in json_response['result']['addon']:
             skinpath = json_response['result']['addon']['path']
         else:
-            log('Failed to retrieve skin path')
-            log(SKINDIR)
-            log(json_query)
+            log("Failed to retrieve skin path (%s)" % SKINDIR, xbmc.LOGERROR)
             return
         skinxml = xbmcvfs.translatePath(os.path.join(skinpath, 'addon.xml'))
         try:
@@ -230,10 +230,11 @@ class Screensaver(xbmcgui.WindowXMLDialog):
                 # find the effectslowdown attribute
                 for (name, value) in list(tag.attributes.items()):
                     if name == 'effectslowdown':
-                        anim = value
-                        return anim
+                        return value
+            # use default if we couldn't find the effectslowdown value
+            return 1
         except:
-            log('Failed to parse addon.xml')
+            log("Failed to parse addon.xml", xbmc.LOGERROR)
             return
 
     def _set_prop(self, name, value):
